@@ -15,7 +15,7 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LabelReference = exports.IntLiteral = exports.Directive = exports.Instruction = exports.Label = exports.AddressAccess = exports.Register = exports.Token = void 0;
+exports.LabelReference = exports.StrLiteral = exports.IntLiteral = exports.Directive = exports.Instruction = exports.Label = exports.AddressAccess = exports.Register = exports.Token = void 0;
 var Token = /** @class */ (function () {
     function Token() {
     }
@@ -85,6 +85,16 @@ var IntLiteral = /** @class */ (function (_super) {
     return IntLiteral;
 }(Token));
 exports.IntLiteral = IntLiteral;
+var StrLiteral = /** @class */ (function (_super) {
+    __extends(StrLiteral, _super);
+    function StrLiteral(value) {
+        var _this = _super.call(this) || this;
+        _this.value = value;
+        return _this;
+    }
+    return StrLiteral;
+}(Token));
+exports.StrLiteral = StrLiteral;
 var LabelReference = /** @class */ (function (_super) {
     __extends(LabelReference, _super);
     function LabelReference(name) {

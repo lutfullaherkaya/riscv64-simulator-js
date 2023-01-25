@@ -1,31 +1,28 @@
 import {Memory} from "./memory";
-import {InstructionSet} from "./instructionSet";
+import {Executer} from "./executer";
 import {Registery} from "./registery";
 import {TokenFactory} from "./tokenFactory";
 import Parser from "./parser";
-import {Token} from "./tokens";
+import {Directive, Instruction, Label, Token} from "./tokens";
 
 export class Simulator {
     registery: Registery;
     memory: Memory;
-    instructionSet: InstructionSet;
+    executer: Executer;
     tokenizedLines: Array<Array<Token>> = [];
     constructor(asmText: string) {
         this.registery = new Registery();
         this.memory = new Memory();
-        this.instructionSet = new InstructionSet();
+        this.executer = new Executer();
 
-        const parser = new Parser(asmText, new TokenFactory(this.instructionSet, this.registery));
+        const parser = new Parser(asmText, new TokenFactory(this.executer, this.registery));
         this.tokenizedLines = parser.parse();
 
     }
 
     simulate() {
-        this.tokenizedLines.forEach((line) => {
-            line.forEach((token) => {
-                console.log(token);
-            });
-        });
-        return 1;
+        this.memory.storeProgram(this.tokenizedLines);
+        this.executer.execute(this.memory, this.registery);
     }
+
 }

@@ -62,6 +62,15 @@ export class IntLiteral extends Token {
     }
 }
 
+export class StrLiteral extends Token {
+    value: string;
+
+    constructor(value: string) {
+        super();
+        this.value = value;
+    }
+}
+
 export class LabelReference extends Token {
     name: string;
 

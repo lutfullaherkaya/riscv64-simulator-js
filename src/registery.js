@@ -16,6 +16,22 @@ var Registery = /** @class */ (function () {
             _this.regs[regName] = new tokens_1.Register(regName, 0);
         });
     }
+    Registery.prototype.get = function (reg) {
+        if (typeof reg === 'string') {
+            return this.regs[reg].value;
+        }
+        else {
+            return this.regs[reg.name].value;
+        }
+    };
+    Registery.prototype.set = function (reg, val) {
+        if (typeof reg === 'string') {
+            this.regs[reg].value = val;
+        }
+        else {
+            this.regs[reg.name].value = val;
+        }
+    };
     Registery.prototype.isReg = function (name) {
         return name in this.regs;
     };

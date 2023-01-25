@@ -1,6 +1,7 @@
-import {Register} from "./tokens";
+import {Register, Token} from "./tokens";
 
 export class Registery {
+
     regNames: string[] = [
         'zero', 'ra', 'sp',
         't0', 't1', 't2', 't3', 't4', 't5', 't6',
@@ -13,6 +14,24 @@ export class Registery {
         this.regNames.forEach((regName) => {
             this.regs[regName] = new Register(regName, 0);
         });
+    }
+
+    get(reg: Register|string): number {
+        if (typeof reg === 'string') {
+            return this.regs[reg].value;
+        }
+        else {
+            return this.regs[reg.name].value;
+        }
+    }
+
+    set(reg: Register | string, val: number) {
+        if (typeof reg === 'string') {
+            this.regs[reg].value = val;
+        } else {
+
+            this.regs[reg.name].value = val;
+        }
     }
 
     isReg(name: string): boolean {

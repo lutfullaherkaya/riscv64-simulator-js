@@ -4,19 +4,23 @@ exports.TokenFactory = void 0;
 var tokens_1 = require("./tokens");
 var TokenFactory = /** @class */ (function () {
     function TokenFactory(instructionSet, registery) {
-        this.instructionSet = instructionSet;
+        this.executer = instructionSet;
         this.registery = registery;
     }
     TokenFactory.prototype.createToken = function (word) {
         var addressAccessRegexMatch = word.match(/^(\d*)\((.+)\)$/);
         if (addressAccessRegexMatch) {
-            return new tokens_1.AddressAccess(this.registery.regs[addressAccessRegexMatch[2]], Number(addressAccessRegexMatch[1]));
+            // divide by 8 since we use array instead of 8 byte elemented ram
+            return new tokens_1.AddressAccess(this.registery.regs[addressAccessRegexMatch[2]], Number(addressAccessRegexMatch[1]) / 8);
+        }
+        else if (word.startsWith('"') && word.endsWith('"')) {
+            return new tokens_1.StrLiteral(word.slice(1, -1));
         }
         else if (this.registery.isReg(word)) {
             return this.registery.regs[word];
         }
-        else if (this.instructionSet.isInstruction(word)) {
-            return this.instructionSet.instructions[word];
+        else if (this.executer.isInstruction(word)) {
+            return new tokens_1.Instruction(word);
         }
         else if (!isNaN(Number(word))) {
             return new tokens_1.IntLiteral(Number(word));
@@ -24,7 +28,7 @@ var TokenFactory = /** @class */ (function () {
         else if (word.endsWith(':')) {
             return new tokens_1.Label(word);
         }
-        else if (['.global', '.text', '.align', '.data', '.string'].includes(word)) {
+        else if (['.global', '.text', '.align', '.data', '.string', '.quad'].includes(word)) {
             return new tokens_1.Directive(word);
         }
         else {
