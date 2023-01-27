@@ -367,7 +367,7 @@ class VoxLib {
                     break;
             }
             this.registery?.set('a0', resultVar!.type);
-            this.registery?.set('a1', resultVar!.value);
+            this.registery?.set('a1', Math.trunc(resultVar!.value));
         } else {
             throw new Error('Cannot do arithmetic on non-ints');
         }
