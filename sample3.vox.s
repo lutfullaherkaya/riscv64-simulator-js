@@ -6,15 +6,20 @@
 
 # fun main();
 main:
-  addi sp, sp, -24
-  sd ra, 16(sp)
-            # arg 2
-  li a0, 0
-  li a1, 2
-            # call .tmp0, "kare"
+  addi sp, sp, -8
+  sd ra, 0(sp)
+            # arg global_a
+  ld a0, a_type
+  ld a1, a_value
+            # call "__vox_print__"
   call __vox_print__
-
-  ld ra, 16(sp)
-  addi sp, sp, 24
+            # return
+  ld ra, 0(sp)
+  addi sp, sp, 8
   li a0, 0
   ret
+
+  .data
+a_type:   .quad 0
+a_value:  .quad 123
+

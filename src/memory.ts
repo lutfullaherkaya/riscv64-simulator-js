@@ -1,9 +1,14 @@
 import {Directive, Instruction, IntLiteral, Label, LabelReference, StrLiteral, Token} from "./tokens";
+import {Dir} from "fs";
 
 export class Memory {
-    // text -> data -> stack
-    memory: Array<Array<Token>> = [];
-    labels: { [key: string]: number } = {}
+    // HIGH_ADDRESS -> text -> data -> stack -> LOW_ADDRESS
+    haltAddress = 88888888;
+    private ram = new Map<number, Array<Token>>([
+        [this.haltAddress, [new Instruction('halt')]]
+    ]);
+    textPointer = this.haltAddress - 8;
+    labelAddresses: { [key: string]: number } = {}
 
     constructor() {
 
@@ -39,28 +44,35 @@ export class Memory {
         });
     }
 
+    addTextEntry(entry: Array<Token>) {
+        this.ram.set(this.textPointer, entry);
+        this.textPointer -= 8;
+    }
 
     addInstruction(line: Array<Token>) {
-        this.memory.push(line);
+        this.addTextEntry(line);
     }
 
     addLabel(label: Label) {
-        this.labels[label.name] = this.memory.length;
+        this.labelAddresses[label.name] = this.textPointer;
     }
 
     addString(stringLine: Array<Token>) {
-        this.memory.push(stringLine);
+        this.addTextEntry(stringLine);
     }
 
     addQuad(quad: Array<Token>) {
-        this.memory.push(quad);
+        this.addTextEntry(quad);
     }
 
-    get(index: number): Array<Token> {
-        return this.memory[index];
+    get(index: number): Token[] {
+        if (!this.ram.has(index)) {
+            this.ram.set(index, [new Directive('.quad'), new IntLiteral(0)]);
+        }
+        return this.ram.get(index)!;
     }
 
     set(index: number, value: Array<Token>) {
-        this.memory[index] = value;
+        this.ram.set(index, value);
     }
 }

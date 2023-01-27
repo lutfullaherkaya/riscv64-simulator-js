@@ -17,12 +17,13 @@ export class Registery {
     }
 
     get(reg: Register|string): number {
-        if (typeof reg === 'string') {
-            return this.regs[reg].value;
+        const regName = typeof reg === 'string' ? reg : reg.name;
+        if (regName in this.regs) {
+            return this.regs[regName].value;
+        } else {
+            throw new Error(`Register ${regName} does not exist`);
         }
-        else {
-            return this.regs[reg.name].value;
-        }
+
     }
 
     set(reg: Register | string, val: number) {

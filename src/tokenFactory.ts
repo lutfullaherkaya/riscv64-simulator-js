@@ -15,8 +15,7 @@ export class TokenFactory {
     createToken(word: string): Token {
         const addressAccessRegexMatch = word.match(/^(\d*)\((.+)\)$/);
         if (addressAccessRegexMatch) {
-            // divide by 8 since we use array instead of 8 byte elemented ram
-            return new AddressAccess(this.registery.regs[addressAccessRegexMatch[2]], Number(addressAccessRegexMatch[1]) / 8);
+            return new AddressAccess(this.registery.regs[addressAccessRegexMatch[2]], Number(addressAccessRegexMatch[1]));
         } else if (word.startsWith('"') && word.endsWith('"')) {
             return new StrLiteral(word.slice(1, -1));
         } else if (this.registery.isReg(word)) {
@@ -26,7 +25,7 @@ export class TokenFactory {
         } else if (!isNaN(Number(word))) {
             return new IntLiteral(Number(word));
         } else if (word.endsWith(':')) {
-            return new Label(word);
+            return new Label(word.slice(0, -1));
         } else if (['.global', '.text', '.align', '.data', '.string', '.quad'].includes(word)) {
             return new Directive(word);
         } else {
