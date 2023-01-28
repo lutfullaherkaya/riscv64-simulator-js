@@ -64,7 +64,7 @@ export class Executer {
         this.registery = registery;
         this.voxLib = new VoxLib(memory, registery);
 
-        this.memory.addQuad(this.wrapToQuad(0));
+        this.memory.addTextEntry(Executer.wrapToQuad(0));
         this.registery.set('sp', this.memory.getBottomOfStackAddr());
         this.registery.set('ra', this.memory.haltAddress - 8); // - 8 since it is incremented in the loop
         this.programCounter = this.memory.labelAddresses['main'];
@@ -127,7 +127,7 @@ export class Executer {
 
 
         const data = this.registery!.get(reg);
-        this.memory!.set(addressAccess.index + this.registery!.get(addressAccess.register), this.wrapToQuad(data));
+        this.memory!.set(addressAccess.index + this.registery!.get(addressAccess.register), Executer.wrapToQuad(data));
 
     }
 
@@ -212,26 +212,29 @@ export class Executer {
         const label = args[0] as Label;
         this.registery!.set('ra', this.programCounter);
 
+        let resultVar: VoxVariable = new VoxVariable(VOX_INT, 0);
         switch (label.name) {
             case '__vox_print__':
                 this.voxLib!.__vox_print__();
                 break;
             case '__vox_add__':
-                this.voxLib!.__vox_arithmetic__('add');
+                resultVar = this.voxLib!.__vox_arithmetic__('add');
                 break;
             case '__vox_sub__':
-                this.voxLib!.__vox_arithmetic__('sub');
+                resultVar = this.voxLib!.__vox_arithmetic__('sub');
                 break;
             case '__vox_mul__':
-                this.voxLib!.__vox_arithmetic__('mul');
+                resultVar = this.voxLib!.__vox_arithmetic__('mul');
                 break;
             case '__vox_div__':
-                this.voxLib!.__vox_arithmetic__('div');
+                resultVar = this.voxLib!.__vox_arithmetic__('div');
                 break;
             default:
                 this.programCounter = this.memory!.labelAddresses[label.name] - 8;
 
         }
+        this.registery!.set('a0', resultVar.type);
+        this.registery!.set('a1', resultVar.value);
 
 
     }
@@ -290,7 +293,7 @@ export class Executer {
         // handled outside the loop
     }
 
-    wrapToQuad(value: number): Array<Token> {
+    static wrapToQuad(value: number): Array<Token> {
         return [new Directive('.quad'), new IntLiteral(value)];
     }
 }
@@ -316,6 +319,21 @@ class VoxLib {
 
     }
 
+    getVectorLength(vectorAddr: number): number {
+        return (this.memory!.get(vectorAddr - 8)[1] as IntLiteral).value;
+    }
+
+    getVector(vectorAddr: number): Array<VoxVariable> {
+        const vectorLength = this.getVectorLength(vectorAddr);
+        const vector = [];
+        for (let i = 0; i < vectorLength; i++) {
+            const elmType = (this.memory!.get(vectorAddr + (i * 2) * 8)[1] as IntLiteral).value;
+            const elmValue = (this.memory!.get(vectorAddr + (i * 2 + 1) * 8)[1] as IntLiteral).value;
+            vector.push(new VoxVariable(elmType, elmValue));
+        }
+        return vector;
+    }
+
     __vox_print__() {
         const arg1 = new VoxVariable(this.registery!.get('a0'), this.registery!.get('a1'))
         console.log(this.__vox_print_without_newline__(arg1));
@@ -327,23 +345,15 @@ class VoxLib {
                 return voxVar.value.toString();
                 break;
             case VOX_VECTOR:
-                let returnStr = "";
-
-                const length = (this.memory!.get(voxVar.value - 8)[1] as IntLiteral).value;
-
-
-                returnStr += '[';
-                for (let i = 0; i < length; i++) {
-                    const elmType = (this.memory!.get(voxVar.value + (i * 2)*8)[1] as IntLiteral).value;
-                    const elmValue = (this.memory!.get(voxVar.value + (i * 2 + 1)*8)[1] as IntLiteral).value;
-                    returnStr += this.__vox_print_without_newline__(new VoxVariable(elmType, elmValue), true);
-                    if (i !== length - 1) {
+                let returnStr = "[";
+                const vector = this.getVector(voxVar.value);
+                vector.forEach((element, i) => {
+                    returnStr += this.__vox_print_without_newline__(element, true);
+                    if (i !== vector.length - 1) {
                         returnStr += ', ';
                     }
-                }
+                })
                 returnStr += ']';
-
-
                 return returnStr;
                 break;
             case VOX_BOOL:
@@ -361,11 +371,11 @@ class VoxLib {
         }
     }
 
-    __vox_arithmetic__(op: 'add' | 'sub' | 'div' | 'mul') {
-        const arg1 = new VoxVariable(this.registery!.get('a0'), this.registery!.get('a1'))
-        const arg2 = new VoxVariable(this.registery!.get('a2'), this.registery!.get('a3'))
+    __vox_arithmetic__(op: 'add' | 'sub' | 'div' | 'mul',
+                       arg1 = new VoxVariable(this.registery!.get('a0'), this.registery!.get('a1')),
+                       arg2 = new VoxVariable(this.registery!.get('a2'), this.registery!.get('a3'))) {
+        let resultVar = new VoxVariable(VOX_INT, 0);
         if (arg1.type === VOX_INT && arg2.type === VOX_INT) {
-            let resultVar: VoxVariable | null = null;
             switch (op) {
                 case 'add':
                     resultVar = new VoxVariable(VOX_INT, arg1.value + arg2.value);
@@ -380,10 +390,46 @@ class VoxLib {
                     resultVar = new VoxVariable(VOX_INT, arg1.value * arg2.value);
                     break;
             }
-            this.registery?.set('a0', resultVar!.type);
-            this.registery?.set('a1', Math.trunc(resultVar!.value));
+            resultVar.value = Math.trunc(resultVar.value);
+
+
         } else {
-            throw new Error('Cannot do arithmetic on non-ints');
+            const resultVector = [];
+            if (arg1.type === VOX_VECTOR && arg2.type === VOX_VECTOR) {
+                const vector1 = this.getVector(arg1.value);
+                const vector2 = this.getVector(arg2.value);
+                if (vector1.length !== vector2.length) {
+                    throw new Error('Vector sizes of '
+                        + this.__vox_print_without_newline__(arg1)
+                        + ' and '
+                        + this.__vox_print_without_newline__(arg2)
+                        + ' do not match. Runtime error :(');
+                }
+
+                for (let i = 0; i < vector1.length; i++) {
+                    resultVector.push(this.__vox_arithmetic__(op, vector1[i], vector2[i]));
+                }
+            } else if (arg1.type === VOX_VECTOR) {
+                const vector1 = this.getVector(arg1.value);
+                for (let i = 0; i < vector1.length; i++) {
+                    resultVector.push(this.__vox_arithmetic__(op, vector1[i], arg2));
+                }
+            } else if (arg2.type === VOX_VECTOR) {
+                const vector2 = this.getVector(arg2.value);
+                for (let i = 0; i < vector2.length; i++) {
+                    resultVector.push(this.__vox_arithmetic__(op, arg1, vector2[i]));
+                }
+            }
+            const resultVectorAddr = this.memory!.calloc(resultVector.length * 2 + 1);
+            resultVar.type = VOX_VECTOR;
+            resultVar.value = resultVectorAddr + 8; // first element is vector length
+            this.memory!.set(resultVectorAddr, Executer.wrapToQuad(resultVector.length));
+            resultVector.forEach((element, i) => {
+                this.memory!.set(resultVectorAddr + (1 + i * 2) * 8, Executer.wrapToQuad(element.type));
+                this.memory!.set(resultVectorAddr + (1 + i * 2 + 1) * 8, Executer.wrapToQuad(element.value));
+            });
+
         }
+        return resultVar;
     }
 }

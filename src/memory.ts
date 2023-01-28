@@ -2,7 +2,7 @@ import {Directive, Instruction, IntLiteral, Label, LabelReference, StrLiteral, T
 import {Dir} from "fs";
 
 export class Memory {
-    // HIGHER_ADDRESS <- data <- text <- HIGH_ADDRESS -> stack -> LOW_ADDRESS
+    // HIGHER_ADDRESS <-- heap <- data <- text <- HIGH_ADDRESS -> stack -> LOW_ADDRESS
     // right at the middle there is Halt Address
     haltAddress = 88888888;
     private ram = new Map<number, Array<Token>>([
@@ -25,19 +25,19 @@ export class Memory {
                     // impossible for vox
                 } else if (firstToken.name === '.quad') {
                     // vector element type and value
-                    this.addQuad([firstToken, line[1]]);
-                    this.addQuad([firstToken, line[2]]);
+                    this.addTextEntry([firstToken, line[1]]);
+                    this.addTextEntry([firstToken, line[2]]);
                 }
             } else if (firstToken instanceof Instruction) {
-                this.addInstruction(line);
+                this.addTextEntry(line);
             } else if (firstToken instanceof Label) {
-                this.addLabel(firstToken);
+                this.addLabelForCurrentTextEntry(firstToken);
                 if (line.length > 1) {
                     if (line[1] instanceof Directive) {
                         if (line[1].name === '.quad') {
-                            this.addQuad([line[1], line[2]]);
+                            this.addTextEntry([line[1], line[2]]);
                         } else if (line[1].name === '.string') {
-                            this.addString([line[1], line[2]]);
+                            this.addTextEntry([line[1], line[2]]);
                         }
                     }
 
@@ -51,21 +51,19 @@ export class Memory {
         this.textPointer += 8;
     }
 
-    addInstruction(line: Array<Token>) {
-        this.addTextEntry(line);
+    calloc(length: number, size: number=8) {
+        const addr = this.textPointer;
+        for (let i = 0; i < length; i++) {
+            this.addTextEntry([new Directive('.quad'), new IntLiteral(0)]);
+        }
+        return addr;
     }
 
-    addLabel(label: Label) {
+
+    addLabelForCurrentTextEntry(label: Label) {
         this.labelAddresses[label.name] = this.textPointer;
     }
 
-    addString(stringLine: Array<Token>) {
-        this.addTextEntry(stringLine);
-    }
-
-    addQuad(quad: Array<Token>) {
-        this.addTextEntry(quad);
-    }
 
     get(index: number): Token[] {
         if (!this.ram.has(index)) {
