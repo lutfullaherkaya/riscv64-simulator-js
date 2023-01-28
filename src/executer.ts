@@ -213,29 +213,29 @@ export class Executer {
         this.registery!.set('ra', this.programCounter);
 
         let resultVar: VoxVariable = new VoxVariable(VOX_INT, 0);
-        switch (label.name) {
-            case '__vox_print__':
-                this.voxLib!.__vox_print__();
-                break;
-            case '__vox_add__':
-                resultVar = this.voxLib!.__vox_arithmetic__('add');
-                break;
-            case '__vox_sub__':
-                resultVar = this.voxLib!.__vox_arithmetic__('sub');
-                break;
-            case '__vox_mul__':
-                resultVar = this.voxLib!.__vox_arithmetic__('mul');
-                break;
-            case '__vox_div__':
-                resultVar = this.voxLib!.__vox_arithmetic__('div');
-                break;
-            default:
-                this.programCounter = this.memory!.labelAddresses[label.name] - 8;
-
+        if (['__vox_print__', '__vox_add__', '__vox_sub__', '__vox_mul__', '__vox_div__'].includes(label.name)) {
+            switch (label.name) {
+                case '__vox_print__':
+                    this.voxLib!.__vox_print__();
+                    break;
+                case '__vox_add__':
+                    resultVar = this.voxLib!.__vox_arithmetic__('add');
+                    break;
+                case '__vox_sub__':
+                    resultVar = this.voxLib!.__vox_arithmetic__('sub');
+                    break;
+                case '__vox_mul__':
+                    resultVar = this.voxLib!.__vox_arithmetic__('mul');
+                    break;
+                case '__vox_div__':
+                    resultVar = this.voxLib!.__vox_arithmetic__('div');
+                    break;
+            }
+            this.registery!.set('a0', resultVar.type);
+            this.registery!.set('a1', resultVar.value);
+        } else {
+            this.programCounter = this.memory!.labelAddresses[label.name] - 8;
         }
-        this.registery!.set('a0', resultVar.type);
-        this.registery!.set('a1', resultVar.value);
-
 
     }
 
@@ -274,7 +274,7 @@ export class Executer {
         this.registery!.set(reg1, this.registery!.get(reg2) << immediate.value);
     }
 
-    execSlt(instruction: Instruction, args: Array<Token>) {
+    execSlt(instruction: Instruction, args: Array<Token>) { // slt a, b, c: a = b < c
         const reg1 = args[0] as Register;
         const reg2 = args[1] as Register;
         const reg3 = args[2] as Register;
