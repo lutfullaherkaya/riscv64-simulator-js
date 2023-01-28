@@ -4,11 +4,11 @@ import {Registery} from "./registery";
 import {AddressAccess, Directive, Instruction, IntLiteral, Label, LabelReference, StrLiteral, Token} from "./tokens";
 
 export class TokenFactory {
-    executer: Executer;
+    instructionSet: Set<string>;
     registery: Registery;
 
-    constructor(instructionSet: Executer, registery: Registery) {
-        this.executer = instructionSet;
+    constructor(instructionSet: Set<string>, registery: Registery) {
+        this.instructionSet = instructionSet;
         this.registery = registery;
     }
 
@@ -20,7 +20,7 @@ export class TokenFactory {
             return new StrLiteral(word.slice(1, -1));
         } else if (this.registery.isReg(word)) {
             return this.registery.regs[word];
-        } else if (this.executer.isInstruction(word)) {
+        } else if (this.instructionSet.has(word)) {
             return new Instruction(word);
         } else if (!isNaN(Number(word))) {
             return new IntLiteral(Number(word));

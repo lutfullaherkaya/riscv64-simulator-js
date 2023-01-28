@@ -17,12 +17,6 @@ const VOX_VECTOR = 1;
 const VOX_BOOL = 2;
 const VOX_STRING = 3;
 
-/**
- * ÖNEMLİ TODO:
- * Stack adresi çoktan aza büyüdüğü için işleri karıştırdı. Bir de adresleri 8 in katı olarak tutup 8 e bölsen daha iyi olur.
- * şu an stack bozuk olduğu için fonksiyonlar çalışmıyor.
- */
-
 export class Executer {
     thisExecuter = this;
     instructionExecuters: { [key: string]: (instruction: Instruction, args: Array<Token>) => void } = {
@@ -60,6 +54,10 @@ export class Executer {
         return name in this.instructionExecuters;
     }
 
+    getInstructionSet(): Set<string> {
+        return new Set(Object.keys(this.instructionExecuters));
+    }
+
 
     execute(memory: Memory, registery: Registery) {
         this.memory = memory;
@@ -67,8 +65,8 @@ export class Executer {
         this.voxLib = new VoxLib(memory, registery);
 
         this.memory.addQuad(this.wrapToQuad(0));
-        this.registery.set('sp', this.memory.textPointer);
-        this.registery.set('ra', this.memory.haltAddress + 8); // + 8 since after ret instruction program counter will be decremented by 8
+        this.registery.set('sp', this.memory.getBottomOfStackAddr());
+        this.registery.set('ra', this.memory.haltAddress - 8); // - 8 since it is incremented in the loop
         this.programCounter = this.memory.labelAddresses['main'];
 
         while (true) {
@@ -80,14 +78,12 @@ export class Executer {
             const args = line.slice(1);
 
             // execute
-            if (instruction.name === 'halt') {
-                break;
-            } else {
+            if (instruction.name !== 'halt') {
                 this.execInstruction(instruction, args);
-                this.programCounter -= 8;
+                this.programCounter += 8;
+            } else {
+                break;
             }
-
-
         }
     }
 
@@ -137,13 +133,33 @@ export class Executer {
 
     execLd(instruction: Instruction, args: Array<Token>) {
         const reg = args[0] as Register;
-        let data = 0;
-        if (args[1] instanceof AddressAccess) {
-            data = (this.memory!.get(args[1].index + this.registery!.get(args[1].register))[1] as IntLiteral).value;
-        } else if (args[1] instanceof LabelReference) {
-            data = (this.memory!.get(this.memory!.labelAddresses[args[1].name])[1] as IntLiteral).value;
-        }
+        const data = this.getIntValue(args[1]);
         this.registery!.set(reg, data);
+    }
+
+    getIntValue(token: Token): number {
+        if (token instanceof IntLiteral) {
+            return token.value;
+        } else if (token instanceof Register) {
+            return this.registery!.get(token);
+        } else if (token instanceof AddressAccess) {
+            const pointedToken = this.memory!.get(token.index + this.registery!.get(token.register))[1];
+            if (pointedToken instanceof IntLiteral) {
+                return pointedToken.value;
+            } else {
+                throw new Error('Cannot get value of non-int literal');
+            }
+        } else if (token instanceof LabelReference) {
+            const pointedToken = this.memory!.get(this.memory!.labelAddresses[token.name])[1];
+            if (pointedToken instanceof IntLiteral) {
+                return pointedToken.value;
+            } else if (pointedToken instanceof LabelReference) {
+                return this.memory!.labelAddresses[pointedToken.name];
+            }
+        } else {
+            throw new Error('Unknown token type: ' + token);
+        }
+        throw new Error("Can't get int value of token: " + token);
     }
 
     execLi(instruction: Instruction, args: Array<Token>) {
@@ -213,7 +229,7 @@ export class Executer {
                 this.voxLib!.__vox_arithmetic__('div');
                 break;
             default:
-                this.programCounter = this.memory!.labelAddresses[label.name] + 8;
+                this.programCounter = this.memory!.labelAddresses[label.name] - 8;
 
         }
 
@@ -229,7 +245,7 @@ export class Executer {
         const reg2 = args[1] as Register;
         const label = args[2] as Label;
         if (this.registery!.get(reg1) !== this.registery!.get(reg2)) {
-            this.programCounter = this.memory!.labelAddresses[label.name] + 8;
+            this.programCounter = this.memory!.labelAddresses[label.name] - 8;
         }
     }
 
@@ -238,13 +254,13 @@ export class Executer {
         const reg2 = args[1] as Register;
         const label = args[2] as Label;
         if (this.registery!.get(reg1) === this.registery!.get(reg2)) {
-            this.programCounter = this.memory!.labelAddresses[label.name] + 8;
+            this.programCounter = this.memory!.labelAddresses[label.name] - 8;
         }
     }
 
     execJ(instruction: Instruction, args: Array<Token>) {
         const label = args[0] as Label;
-        this.programCounter = this.memory!.labelAddresses[label.name] + 8;
+        this.programCounter = this.memory!.labelAddresses[label.name] - 8;
     }
 
     execSlli(instruction: Instruction, args: Array<Token>) {
@@ -271,8 +287,7 @@ export class Executer {
     }
 
     execHalt(instruction: Instruction, args: Array<Token>) {
-        // todo: halt
-        console.log('halted');
+        // handled outside the loop
     }
 
     wrapToQuad(value: number): Array<Token> {
@@ -314,22 +329,21 @@ class VoxLib {
             case VOX_VECTOR:
                 let returnStr = "";
 
-                const length = (this.memory!.get(voxVar.value - 1)[1] as IntLiteral).value;
+                const length = (this.memory!.get(voxVar.value - 8)[1] as IntLiteral).value;
 
 
                 returnStr += '[';
                 for (let i = 0; i < length; i++) {
-                    const elmType = (this.memory!.get(voxVar.value + i * 2)[1] as IntLiteral).value;
-                    const elmValue = (this.memory!.get(voxVar.value + i * 2 + 1)[1] as IntLiteral).value;
+                    const elmType = (this.memory!.get(voxVar.value + (i * 2)*8)[1] as IntLiteral).value;
+                    const elmValue = (this.memory!.get(voxVar.value + (i * 2 + 1)*8)[1] as IntLiteral).value;
                     returnStr += this.__vox_print_without_newline__(new VoxVariable(elmType, elmValue), true);
                     if (i !== length - 1) {
                         returnStr += ', ';
                     }
                 }
-                const elmType = (this.memory!.get(voxVar.value + (length - 1) * 2)[1] as IntLiteral).value;
-                const elmValue = (this.memory!.get(voxVar.value + (length - 1) * 2 + 1)[1] as IntLiteral).value;
-                returnStr += this.__vox_print_without_newline__(new VoxVariable(elmType, elmValue), true);
                 returnStr += ']';
+
+
                 return returnStr;
                 break;
             case VOX_BOOL:

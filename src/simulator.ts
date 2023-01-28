@@ -10,17 +10,17 @@ export class Simulator {
     memory: Memory;
     executer: Executer;
     tokenizedLines: Array<Array<Token>> = [];
+    parser: Parser;
+
     constructor(asmText: string) {
         this.registery = new Registery();
         this.memory = new Memory();
         this.executer = new Executer();
-
-        const parser = new Parser(asmText, new TokenFactory(this.executer, this.registery));
-        this.tokenizedLines = parser.parse();
-
+        this.parser = new Parser(asmText, new TokenFactory(this.executer.getInstructionSet(), this.registery));
     }
 
     simulate() {
+        this.tokenizedLines = this.parser.parse();
         this.memory.storeProgram(this.tokenizedLines);
         this.executer.execute(this.memory, this.registery);
     }

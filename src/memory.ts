@@ -2,12 +2,13 @@ import {Directive, Instruction, IntLiteral, Label, LabelReference, StrLiteral, T
 import {Dir} from "fs";
 
 export class Memory {
-    // HIGH_ADDRESS -> text -> data -> stack -> LOW_ADDRESS
+    // HIGHER_ADDRESS <- data <- text <- HIGH_ADDRESS -> stack -> LOW_ADDRESS
+    // right at the middle there is Halt Address
     haltAddress = 88888888;
     private ram = new Map<number, Array<Token>>([
         [this.haltAddress, [new Instruction('halt')]]
     ]);
-    textPointer = this.haltAddress - 8;
+    textPointer = this.haltAddress + 8;
     labelAddresses: { [key: string]: number } = {}
 
     constructor() {
@@ -23,6 +24,7 @@ export class Memory {
                 } else if (firstToken.name === '.string') {
                     // impossible for vox
                 } else if (firstToken.name === '.quad') {
+                    // vector element type and value
                     this.addQuad([firstToken, line[1]]);
                     this.addQuad([firstToken, line[2]]);
                 }
@@ -46,7 +48,7 @@ export class Memory {
 
     addTextEntry(entry: Array<Token>) {
         this.ram.set(this.textPointer, entry);
-        this.textPointer -= 8;
+        this.textPointer += 8;
     }
 
     addInstruction(line: Array<Token>) {
@@ -74,5 +76,9 @@ export class Memory {
 
     set(index: number, value: Array<Token>) {
         this.ram.set(index, value);
+    }
+
+    getBottomOfStackAddr() {
+        return this.haltAddress - 8;
     }
 }
